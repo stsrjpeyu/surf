@@ -129,6 +129,53 @@ details[open] summary::after{content:" －"}
 .diag span{display:block;margin-top:8px;font-family:var(--jp);font-size:11.5px}
 .pulse{animation:pulse 1.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:.35}50%{opacity:.9}}
+
+/* ---- calibration ---- */
+.calline{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.04em;margin-top:9px}
+.calline em{font-style:normal;color:var(--mute)}
+.logbox{margin-top:26px;border:1px solid var(--line);background:var(--shelf);padding:15px 15px 16px}
+.logbox .eyebrow{margin-bottom:10px}
+.logbtn{width:100%;background:var(--gold);border:none;color:var(--abyss);font-family:var(--jp);
+  font-size:14px;font-weight:700;padding:13px;border-radius:2px;cursor:pointer;letter-spacing:.04em}
+.logbtn:hover{filter:brightness(1.08)}
+.logbtn:focus-visible{outline:2px solid var(--foam);outline-offset:2px}
+.progress{height:2px;background:var(--line);margin-top:12px;position:relative}
+.progress i{position:absolute;inset:0 auto 0 0;background:var(--gold)}
+.logmeta{font-size:11.5px;color:var(--mute);margin-top:8px;line-height:1.55}
+.loglist{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.logrow{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:10.5px;
+  color:var(--mute);padding:4px 0}
+.logrow b{color:var(--foam);font-weight:400}
+.logrow .x{margin-left:auto;background:none;border:none;color:var(--line);cursor:pointer;
+  font-size:14px;padding:0 4px;line-height:1}
+.logrow .x:hover{color:var(--coral)}
+.tools{display:flex;gap:8px;margin-top:12px}
+.tools button{flex:1;background:transparent;border:1px solid var(--line);color:var(--mute);
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;padding:8px;cursor:pointer;border-radius:2px}
+.tools button:hover{border-color:var(--swell);color:var(--swell)}
+
+/* ---- modal ---- */
+.veil{position:fixed;inset:0;background:rgba(3,12,16,.88);display:flex;align-items:flex-end;
+  justify-content:center;z-index:50;padding:0}
+.sheet{background:var(--abyss);border-top:1px solid var(--swell);width:100%;max-width:560px;
+  padding:20px 18px calc(24px + env(safe-area-inset-bottom));max-height:88vh;overflow-y:auto}
+.sheet h2{font-family:var(--jp);font-size:16px;font-weight:700;margin:0 0 3px}
+.sheet .sub{font-family:var(--mono);font-size:10.5px;color:var(--mute);margin-bottom:16px}
+.bands{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.bands button{background:transparent;border:1px solid var(--line);color:var(--foam);
+  font-family:var(--jp);font-size:14px;padding:14px 4px;cursor:pointer;border-radius:2px}
+.bands button:hover{border-color:var(--gold)}
+.bands button[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:var(--abyss);font-weight:700}
+.bands button small{display:block;font-family:var(--mono);font-size:9px;color:var(--mute);margin-top:2px}
+.bands button[aria-pressed="true"] small{color:rgba(5,22,28,.65)}
+.sheetfoot{display:flex;gap:9px;margin-top:18px}
+.sheetfoot button{flex:1;padding:13px;border-radius:2px;font-family:var(--jp);font-size:14px;cursor:pointer}
+.btn-cancel{background:transparent;border:1px solid var(--line);color:var(--mute)}
+.btn-save{background:var(--swell);border:none;color:var(--abyss);font-weight:700}
+.btn-save[disabled]{opacity:.3;cursor:not-allowed}
+.snap{font-family:var(--mono);font-size:10.5px;color:var(--mute);line-height:1.7;
+  border-top:1px solid var(--line);margin-top:16px;padding-top:12px}
+
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (max-width:360px){.hgt{font-size:62px}.cell .v{font-size:25px}}
 </style>
@@ -464,6 +511,7 @@ function render(spot, marine, wind){
     </div>
     <div class="gauge"><i style="width:${sc.total}%"></i></div>
     <div class="gscale"><span>見送り</span><span>参考スコア ${sc.total}</span><span>good</span></div>
+    <div class="calline" id="calline"></div>
   </div>
 
   <div class="band">
@@ -527,11 +575,16 @@ function render(spot, marine, wind){
       <div class="bdrow"><span>風 35%</span><span class="bdbar"><i style="width:${sc.wind}%"></i></span><span>${Math.round(sc.wind)}</span></div>
       <div class="bandnote">サイズは0.6〜2.0mを満点、周期は11秒以上を満点、風はオフショア微風を満点として計算しています。うねりの向き（${exp.label}）はスコアに含めず参考表示です。取得点は${spot.name}沖 約${marine.offshoreKm}km のモデル格子です。</div>
     </div>
-  </details>`;
+  </details>
+
+  <div id="loghost"></div>`;
+
+  CURRENT = { h:c.h, p:c.p, sw:c.sw, ws:c.ws, windLabel:rel.label, spot:spot.id };
 
   document.getElementById("view").innerHTML = html;
   const sc2 = document.getElementById("scroller");
   if(sc2) sc2.scrollLeft = Math.max(0, idx*21 - 40);
+  refreshLogBox(spot);
 }
 
 function wetsuit(sst){
@@ -540,6 +593,233 @@ function wetsuit(sst){
   if(sst>=19) return "3mmフルスーツ";
   if(sst>=15) return "5mm＋ブーツ";
   return "セミドライ＋ブーツ・グローブ";
+}
+
+/* ============================================================
+   入水ログと補正係数
+   モデル値（沖合の有義波高）と現地の体感サイズの比を
+   スポットごとに蓄積し、中央値を補正係数として使う。
+   ============================================================ */
+const LOG_KEY = "swelllog.logs.v1";
+const MIN_N = 10;                       // 係数を適用する最小サンプル数
+
+/* 日本のサーフ表記とフェイスの高さ（m）の対応。個人差があるため目安 */
+const BANDS = [
+  { k:"膝",   m:0.45 }, { k:"腿",   m:0.60 }, { k:"腰", m:0.80 },
+  { k:"腹",   m:0.95 }, { k:"胸",   m:1.15 }, { k:"肩", m:1.35 },
+  { k:"頭",   m:1.60 }, { k:"頭半", m:1.90 }, { k:"ダブル", m:2.60 }
+];
+
+/* localStorage が使えない環境（プライベートブラウズ、埋め込み枠）ではメモリに退避 */
+let memStore = null;
+const Store = {
+  read(){
+    try{
+      const raw = localStorage.getItem(LOG_KEY);
+      return raw ? JSON.parse(raw) : [];
+    }catch(_){ return memStore || []; }
+  },
+  write(list){
+    memStore = list;
+    try{ localStorage.setItem(LOG_KEY, JSON.stringify(list)); return true; }
+    catch(_){ return false; }
+  },
+  persistent(){
+    try{ localStorage.setItem("swelllog.probe","1"); localStorage.removeItem("swelllog.probe"); return true; }
+    catch(_){ return false; }
+  }
+};
+
+function bandLabel(m){
+  if(m==null || isNaN(m)) return "—";
+  if(m <= BANDS[0].m) return BANDS[0].k + "以下";
+  for(let i=1;i<BANDS.length;i++){
+    if(m <= BANDS[i].m){
+      const lo = BANDS[i-1], hi = BANDS[i];
+      const t = (m - lo.m) / (hi.m - lo.m);
+      if(t < 0.3) return lo.k;
+      if(t > 0.7) return hi.k;
+      return lo.k + "〜" + hi.k;
+    }
+  }
+  return "ダブルオーバー";
+}
+
+function median(sorted){
+  const n = sorted.length;
+  if(!n) return null;
+  return n % 2 ? sorted[(n-1)/2] : (sorted[n/2-1] + sorted[n/2]) / 2;
+}
+
+function calibration(spotId){
+  const logs = Store.read().filter(l => l.spot === spotId && l.modelH > 0.1);
+  const ratios = logs.map(l => l.actualM / l.modelH).sort((a,b) => a-b);
+  const n = ratios.length;
+  const med = median(ratios);
+  let spread = null;
+  if(n >= 4){
+    const q1 = median(ratios.slice(0, Math.floor(n/2)));
+    const q3 = median(ratios.slice(Math.ceil(n/2)));
+    if(q1 && q3 && med) spread = (q3 - q1) / med;   // 中央値に対するIQRの比
+  }
+  return { n, ratio: n >= MIN_N ? med : null, provisional: med, spread, logs };
+}
+
+function confidenceLabel(spread){
+  if(spread == null) return "ばらつき算出中";
+  if(spread < 0.25) return "ばらつき小・信頼できる";
+  if(spread < 0.5)  return "ばらつき中・目安として使える";
+  return "ばらつき大・スポット内の条件差が大きい";
+}
+
+/* ============================================================
+   記録UI
+   ============================================================ */
+let CURRENT = null;      // 直近に描画したモデル値のスナップショット
+
+function logBoxHtml(spot){
+  const cal = calibration(spot.id);
+  const pct = Math.min(100, cal.n / MIN_N * 100);
+  let meta;
+  if(cal.ratio != null){
+    meta = `記録 ${cal.n}件 ・ 補正係数 ×${cal.ratio.toFixed(2)} 適用中<br>${confidenceLabel(cal.spread)}`;
+  }else{
+    meta = `記録 ${cal.n} / ${MIN_N}件。あと${MIN_N-cal.n}回でこのスポットの補正係数を適用します。`
+         + (cal.provisional != null ? `<br>暫定 ×${cal.provisional.toFixed(2)}（サンプル不足のため未適用）` : "");
+  }
+  const recent = cal.logs.slice(-5).reverse().map(l => {
+    const d = new Date(l.ts);
+    return `<div class="logrow" data-ts="${l.ts}">
+      <span>${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}</span>
+      <span>モデル <b>${l.modelH.toFixed(1)}m</b></span>
+      <span>実際 <b>${l.band}</b></span>
+      <span>×${(l.actualM/l.modelH).toFixed(2)}</span>
+      <button class="x" data-del="${l.ts}" aria-label="この記録を削除">×</button></div>`;
+  }).join("");
+
+  return `<div class="logbox">
+    <div class="eyebrow">Calibration — ${spot.name}</div>
+    <button class="logbtn" id="openlog">入水記録をつける</button>
+    <div class="progress"><i style="width:${pct}%"></i></div>
+    <div class="logmeta">${meta}</div>
+    ${recent ? `<div class="loglist">${recent}</div>` : ""}
+    <div class="tools">
+      <button id="exp">書き出し</button>
+      <button id="imp">読み込み</button>
+    </div>
+    ${Store.persistent() ? "" : `<div class="logmeta" style="color:#E2603F">この環境では記録を保存できません。ブラウザで直接開いてください。</div>`}
+  </div>`;
+}
+
+function openSheet(spot){
+  if(!CURRENT) return;
+  let picked = null;
+  const veil = document.createElement("div");
+  veil.className = "veil";
+  veil.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="入水記録">
+    <h2>実際のサイズは？</h2>
+    <div class="sub">${spot.name} ・ ${new Date().toLocaleString("ja-JP",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"})}</div>
+    <div class="bands">
+      ${BANDS.map(b => `<button data-m="${b.m}" data-k="${b.k}" aria-pressed="false">${b.k}<small>${b.m.toFixed(2)}m</small></button>`).join("")}
+    </div>
+    <div class="snap">
+      このとき記録するモデル値<br>
+      波高 ${fmt(CURRENT.h,1)}m ・ 周期 ${fmt(CURRENT.p,1)}s ・ 風 ${CURRENT.windLabel} ${fmt(CURRENT.ws,1)}m/s
+    </div>
+    <div class="sheetfoot">
+      <button class="btn-cancel" id="cancel">やめる</button>
+      <button class="btn-save" id="save" disabled>保存</button>
+    </div></div>`;
+  document.body.appendChild(veil);
+
+  const saveBtn = veil.querySelector("#save");
+  veil.querySelectorAll(".bands button").forEach(b => b.addEventListener("click", () => {
+    veil.querySelectorAll(".bands button").forEach(o => o.setAttribute("aria-pressed","false"));
+    b.setAttribute("aria-pressed","true");
+    picked = { m: parseFloat(b.dataset.m), k: b.dataset.k };
+    saveBtn.disabled = false;
+  }));
+
+  const close = () => veil.remove();
+  veil.querySelector("#cancel").addEventListener("click", close);
+  veil.addEventListener("click", e => { if(e.target === veil) close(); });
+
+  saveBtn.addEventListener("click", () => {
+    if(!picked) return;
+    const list = Store.read();
+    list.push({
+      ts: Date.now(), spot: spot.id, spotName: spot.name,
+      modelH: CURRENT.h, modelP: CURRENT.p, modelSwell: CURRENT.sw,
+      windSpeed: CURRENT.ws, windRel: CURRENT.windLabel,
+      band: picked.k, actualM: picked.m
+    });
+    Store.write(list);
+    close();
+    refreshLogBox(spot);
+  });
+}
+
+function refreshLogBox(spot){
+  const host = document.getElementById("loghost");
+  if(!host) return;
+  host.innerHTML = logBoxHtml(spot);
+  wireLogBox(spot);
+  const v = document.getElementById("calline");
+  if(v) v.innerHTML = calLineHtml(spot, CURRENT ? CURRENT.h : null);
+}
+
+function calLineHtml(spot, h){
+  const cal = calibration(spot.id);
+  if(cal.ratio == null || h == null) return `<em>実測換算：記録 ${cal.n}/${MIN_N}件で有効になります</em>`;
+  const est = h * cal.ratio;
+  return `実測換算 ${est.toFixed(1)}m（${bandLabel(est)}） <em>×${cal.ratio.toFixed(2)} / n=${cal.n}</em>`;
+}
+
+function wireLogBox(spot){
+  const open = document.getElementById("openlog");
+  if(open) open.addEventListener("click", () => openSheet(spot));
+
+  document.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => {
+    const ts = Number(b.dataset.del);
+    Store.write(Store.read().filter(l => l.ts !== ts));
+    refreshLogBox(spot);
+  }));
+
+  const exp = document.getElementById("exp");
+  if(exp) exp.addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(Store.read(), null, 2)], { type:"application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "swelllog-" + new Date().toISOString().slice(0,10) + ".json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+
+  const imp = document.getElementById("imp");
+  if(imp) imp.addEventListener("click", () => {
+    const inp = document.createElement("input");
+    inp.type = "file"; inp.accept = "application/json,.json";
+    inp.addEventListener("change", () => {
+      const f = inp.files && inp.files[0];
+      if(!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        try{
+          const incoming = JSON.parse(r.result);
+          if(!Array.isArray(incoming)) throw new Error("形式が違います");
+          const seen = new Set(Store.read().map(l => l.ts));
+          const merged = Store.read().concat(incoming.filter(l => l && l.ts && !seen.has(l.ts)));
+          merged.sort((a,b) => a.ts - b.ts);
+          Store.write(merged);
+          refreshLogBox(spot);
+        }catch(err){
+          alert("読み込めませんでした：" + err.message);
+        }
+      };
+      r.readAsText(f);
+    });
+    inp.click();
+  });
 }
 
 /* ============================================================
